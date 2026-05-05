@@ -77,7 +77,7 @@ export async function writeToCRM(s) {
       const existingLeadSource = existingFull?.[0]?.lead_source;
       const existingEmail = existingFull?.[0]?.email;
       // Preserve original lead_source; add email if missing
-      const updatePayload = { notes: noteLines, lifecycle_stage: "consumer", updated_at: new Date().toISOString() };
+      const updatePayload = { notes: noteLines, lifecycle_stage: "lead", client_type: "consumer", updated_at: new Date().toISOString() };
       if (!existingLeadSource) updatePayload.lead_source = "design_concierge";
       if (!existingEmail && s.email) updatePayload.email = s.email;
       // Update existing contact
@@ -99,13 +99,15 @@ export async function writeToCRM(s) {
           email: s.email,
           phone: s.phone || null,
           lead_source: "shopify_store_modification",
-          lifecycle_stage: "consumer",
+          lifecycle_stage: "lead",
+          client_type: "consumer",
           notes: noteLines,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }),
       });
       const created = await res.json();
+      if (!Array.isArray(created)) console.error("CRM insert error:", JSON.stringify(created));
       const contactId = created?.[0]?.id;
       console.log("CRM: created contact", contactId);
       if (contactId && noteLines) {
