@@ -91,31 +91,12 @@ export default function ChatWindow() {
       )}
 
       {isComplete ? (
-        <div style={{ ...s.completeScreen, justifyContent: "flex-start", overflowY: "auto", paddingTop: 40 }}>
+        <div style={{ ...s.completeScreen }}>
           <div style={{ fontSize:48 }}>✓</div>
           <div style={s.completeTitle}>You're All Set</div>
           <div style={s.completeText}>
-            Thank you{submissionData?.name ? `, ${submissionData.name}` : ""}! Your design direction has been submitted.
-            Our team lead, <span style={s.completeAccent}>Larry</span>, will reach out within 24 hours.
+            Thank you{submissionData?.name ? `, ${submissionData.name}` : ""}! We've got your customization notes and someone from the Barnhaus team will reach out within 24 hours.
           </div>
-          <div style={{ marginTop:16, padding:"12px 28px", background:"linear-gradient(135deg,#B8860B,#DAA520)", color:"#1a1a1a", borderRadius:8, fontWeight:600, fontSize:14, cursor:"pointer", fontFamily:"'Inter',sans-serif" }}
-            onClick={() => window.open("https://barnhaussteelbuilders.com","_blank")}>
-            Visit Barnhaus Steel Builders
-          </div>
-          {submissionData?.suggested_plans?.length > 0 && (
-            <div style={{ marginTop:32, width:"100%", maxWidth:520 }}>
-              <div style={{ fontSize:13, color:"#888", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:"'Inter',sans-serif", marginBottom:12, textAlign:"center" }}>
-                Designs that match your vision
-              </div>
-              <div style={{ display:"flex", flexWrap:"wrap", gap:12, justifyContent:"center" }}>
-                {submissionData.suggested_plans
-                  .map(id => window._floorPlans?.find(p => p.id === id))
-                  .filter(Boolean)
-                  .map(plan => <FloorPlanCard key={plan.id} plan={plan} />)
-                }
-              </div>
-            </div>
-          )}
         </div>
       ) : (
         <>

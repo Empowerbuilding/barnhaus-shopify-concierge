@@ -43,7 +43,7 @@ export async function writeToCRM(s) {
       s.family_notes && `Family: ${s.family_notes}`,
       s.additional_notes && `Notes: ${s.additional_notes}`,
       s.suggested_plan_names?.length && `Suggested plans: ${s.suggested_plan_names.join(", ")}`,
-      `Source: Design Concierge (design.barnhaussteelbuilders.com)`,
+      `Source: Shopify Store — shopify_store_modification`,
       s.imageUrls?.length && `Inspiration images: ${s.imageUrls.join(", ")}`,
       s.imageAnalyses?.length && `Image analysis:\n${s.imageAnalyses.map((a,i) => `Image ${i+1}: ${a.analysis}`).join("\n")}`,
     ].filter(Boolean).join("\n");
@@ -146,7 +146,7 @@ export async function notifyVanessa(s) {
     const summary = s.summary || null;
 
     const msg = [
-      `🏠 **New Design Concierge Lead — Follow Up Now**`,
+      `🛍️ **New Shopify Modification Request — Follow Up Now**`,
       ``,
       `**Name:** ${name}`,
       `**Email:** ${email}`,
@@ -171,7 +171,7 @@ export async function notifyVanessa(s) {
 export async function sendDiscordNotification(s, partial = false) {
   if (!process.env.DISCORD_TOKEN || !process.env.DISCORD_CHANNEL) return;
   try {
-    const tag = partial ? "⚡ **Partial Lead — Contact Captured**" : "🏠 **New Design Concierge Submission**";
+    const tag = partial ? "⚡ **Partial Lead — Contact Captured**" : "🛍️ **New Shopify Modification Request**";
     const sections = [];
 
     const contact = [`**Client:** ${val(s.name) || "Unknown"}`, val(s.email) && `**Email:** ${s.email}`, val(s.phone) && `**Phone:** ${s.phone}`].filter(Boolean).join("\n");
