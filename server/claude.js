@@ -138,12 +138,18 @@ function stripHtml(html) {
 
 export function buildShopifySystemPrompt(product, floorPlans) {
   const planContext =
+    `## CONTEXT: Shopify Store Visit\n` +
     `The visitor is currently viewing this specific floor plan on the Barnhaus Shopify store:\n\n` +
     `Plan: ${product.title}\n` +
     `Price: $${product.price}\n` +
     `Description: ${stripHtml(product.body_html)}\n` +
     `Tags: ${product.tags}\n\n` +
-    `Open the conversation by referencing this specific plan naturally. Example: "I see you're checking out the ${product.title} — [brief detail from description]. Before I tell you more, what's your name and the best email to reach you at?"`;
+    `IMPORTANT INSTRUCTIONS:\n` +
+    `1. Open by referencing this plan: "I see you're checking out the ${product.title} — [brief detail]. Before I tell you more, what's your name and email?"\n` +
+    `2. Throughout the conversation, tie your questions back to this specific plan. Example: "The ${product.title} is [X] stories — does that work for you, or were you thinking something different?"\n` +
+    `3. When you learn their preferences, compare them naturally to this plan. Point out what matches and what might need customization.\n` +
+    `4. At the end, always include this plan's ID in suggested_plans if it's even a partial match.\n` +
+    `5. Never forget about this plan — it's the anchor of the entire conversation.`;
 
   return planContext + "\n\n" + buildSystemPrompt(floorPlans);
 }

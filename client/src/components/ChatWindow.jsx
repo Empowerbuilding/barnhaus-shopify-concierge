@@ -48,6 +48,7 @@ export default function ChatWindow() {
 
   useEffect(() => { startConversation(); }, [startConversation]);
   useEffect(() => { messagesEnd.current?.scrollIntoView({ behavior:"smooth" }); }, [messages, isLoading]);
+  useEffect(() => { if (!isLoading) setTimeout(() => inputRef.current?.focus(), 100); }, [isLoading]);
 
   const handleSend = () => {
     const text = input.trim();
@@ -60,6 +61,7 @@ export default function ChatWindow() {
     } else {
       sendMessage(text);
     }
+    setTimeout(() => inputRef.current?.focus(), 50);
   };
 
   const handleKeyDown = (e) => {
