@@ -1,4 +1,4 @@
-const DOMAIN = process.env.SHOPIFY_STORE_DOMAIN || "barnhaus-steel-builders.myshopify.com";
+const DOMAIN = process.env.SHOPIFY_STORE_DOMAIN || "sf43pj-td.myshopify.com";
 
 export async function fetchShopifyProduct(handle) {
   const url = `https://${DOMAIN}/admin/api/2024-01/products.json?handle=${encodeURIComponent(handle)}`;
