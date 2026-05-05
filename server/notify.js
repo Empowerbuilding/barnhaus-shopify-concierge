@@ -98,7 +98,7 @@ export async function writeToCRM(s) {
           last_name: lastName,
           email: s.email,
           phone: s.phone || null,
-          lead_source: "design_concierge",
+          lead_source: "shopify_store_modification",
           lifecycle_stage: "lead",
           notes: noteLines,
           created_at: new Date().toISOString(),
