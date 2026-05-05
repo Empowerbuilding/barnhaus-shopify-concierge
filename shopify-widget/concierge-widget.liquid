@@ -1,0 +1,125 @@
+{% comment %}Barnhaus Design Concierge — drop into product page template{% endcomment %}
+
+<div id="barnhaus-widget-wrap">
+  <button id="barnhaus-open-btn" onclick="barnhausOpen()">
+    💬 Talk to a Design Concierge
+  </button>
+</div>
+
+<div id="barnhaus-overlay" aria-modal="true" role="dialog" aria-label="Design Concierge">
+  <div id="barnhaus-panel">
+    <button id="barnhaus-close-btn" onclick="barnhausClose()" aria-label="Close">✕</button>
+    <iframe
+      id="barnhaus-iframe"
+      src=""
+      title="Barnhaus Design Concierge"
+      allow="camera; microphone"
+    ></iframe>
+  </div>
+</div>
+
+<style>
+  #barnhaus-open-btn {
+    background: linear-gradient(135deg, #B8860B, #DAA520);
+    color: #1a1a1a;
+    border: none;
+    padding: 14px 28px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    margin-top: 16px;
+    transition: opacity 0.15s;
+  }
+  #barnhaus-open-btn:hover { opacity: 0.9; }
+
+  #barnhaus-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.72);
+    z-index: 99999;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  #barnhaus-overlay.active { display: flex; }
+
+  #barnhaus-panel {
+    background: #1a1a1a;
+    width: 100%;
+    max-width: 700px;
+    height: 85vh;
+    border-radius: 20px 20px 0 0;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #barnhaus-close-btn {
+    position: absolute;
+    top: 14px;
+    right: 18px;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid #444;
+    color: #aaa;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #barnhaus-iframe {
+    flex: 1;
+    width: 100%;
+    border: none;
+    background: #1a1a1a;
+  }
+
+  @media (min-width: 768px) {
+    #barnhaus-overlay { align-items: center; padding: 24px; }
+    #barnhaus-panel { height: 88vh; border-radius: 20px; }
+  }
+</style>
+
+<script>
+  (function () {
+    var CONCIERGE_BASE = 'https://concierge.barnhaussteelbuilders.com';
+    var handle = {{ product.handle | json }};
+    var loaded = false;
+
+    function barnhausOpen() {
+      var overlay = document.getElementById('barnhaus-overlay');
+      if (!loaded) {
+        document.getElementById('barnhaus-iframe').src =
+          CONCIERGE_BASE + '?mode=widget&handle=' + encodeURIComponent(handle);
+        loaded = true;
+      }
+      overlay.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function barnhausClose() {
+      document.getElementById('barnhaus-overlay').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    document.getElementById('barnhaus-overlay').addEventListener('click', function (e) {
+      if (e.target === this) barnhausClose();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') barnhausClose();
+    });
+
+    window.barnhausOpen = barnhausOpen;
+    window.barnhausClose = barnhausClose;
+  })();
+</script>

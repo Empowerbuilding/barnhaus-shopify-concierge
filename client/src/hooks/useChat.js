@@ -56,6 +56,10 @@ export function useChat() {
   const saved = useRef(loadSession());
   const sessionId = useRef(saved.current?.sessionId || generateId());
 
+  const urlParams = new URLSearchParams(window.location.search);
+  const [isWidget] = useState(() => urlParams.get("mode") === "widget");
+  const [productHandle] = useState(() => urlParams.get("handle") || null);
+
   const [messages, setMessages] = useState(saved.current?.messages || []);
   const [isLoading, setIsLoading] = useState(false);
   const [isComplete, setIsComplete] = useState(saved.current?.isComplete || false);
@@ -179,7 +183,7 @@ export function useChat() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: sessionId.current, message: "Hello" }),
+        body: JSON.stringify({ sessionId: sessionId.current, message: "Hello", ...(productHandle ? { productHandle } : {}) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to start");
@@ -197,5 +201,5 @@ export function useChat() {
 
   const dismissFields = useCallback(() => setActiveFields(null), []);
 
-  return { messages, isLoading, isComplete, submissionData, activeFields, dismissFields, uploadPrompted, sendMessage, sendImage, startConversation };
+  return { messages, isLoading, isComplete, submissionData, activeFields, dismissFields, uploadPrompted, sendMessage, sendImage, startConversation, isWidget };
 }

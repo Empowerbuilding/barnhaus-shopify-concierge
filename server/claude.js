@@ -132,8 +132,26 @@ ${planSummaries || "No floor plans loaded."}`
   ].join("\n");
 }
 
-export async function chat(messages, floorPlans) {
-  const systemPrompt = buildSystemPrompt(floorPlans);
+function stripHtml(html) {
+  return (html || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+export function buildShopifySystemPrompt(product, floorPlans) {
+  const planContext =
+    `The visitor is currently viewing this specific floor plan on the Barnhaus Shopify store:\n\n` +
+    `Plan: ${product.title}\n` +
+    `Price: $${product.price}\n` +
+    `Description: ${stripHtml(product.body_html)}\n` +
+    `Tags: ${product.tags}\n\n` +
+    `Open the conversation by referencing this specific plan naturally. Example: "I see you're checking out the ${product.title} — [brief detail from description]. Before I tell you more, what's your name and the best email to reach you at?"`;
+
+  return planContext + "\n\n" + buildSystemPrompt(floorPlans);
+}
+
+export async function chat(messages, floorPlans, product = null) {
+  const systemPrompt = product
+    ? buildShopifySystemPrompt(product, floorPlans)
+    : buildSystemPrompt(floorPlans);
 
   const response = await client.messages.create({
     model: "claude-sonnet-4-20250514",

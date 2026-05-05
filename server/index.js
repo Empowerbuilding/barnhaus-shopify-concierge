@@ -5,6 +5,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import multer from "multer";
 import { chat } from "./claude.js";
+import { fetchShopifyProduct } from "./shopify.js";
 import { fetchFloorPlans, writeSubmission } from "./supabase.js";
 import { sendN8nWebhook, sendDiscordNotification, writeToCRM, deleteDiscordMessage, notifyVanessa } from "./notify.js";
 import { uploadImage, analyzeImage } from "./upload.js";
@@ -83,7 +84,7 @@ app.get("/api/plans", (_req, res) => {
 // Chat endpoint
 app.post("/api/chat", async (req, res) => {
   try {
-    const { sessionId, message } = req.body;
+    const { sessionId, message, productHandle } = req.body;
 
     if (!sessionId || !message) {
       return res.status(400).json({ error: "sessionId and message required" });
@@ -91,16 +92,25 @@ app.post("/api/chat", async (req, res) => {
 
     // Get or create session
     if (!sessions.has(sessionId)) {
-      sessions.set(sessionId, { history: [], partialSaved: false, imageUrls: [], partialDiscordMsgId: null });
+      sessions.set(sessionId, { history: [], partialSaved: false, imageUrls: [], partialDiscordMsgId: null, productContext: null });
     }
     const session = sessions.get(sessionId);
     const history = session.history;
+
+    // On first message, fetch Shopify product context if handle provided
+    if (history.length === 0 && productHandle && !session.productContext) {
+      try {
+        session.productContext = await fetchShopifyProduct(productHandle);
+      } catch (err) {
+        console.error("Failed to fetch Shopify product:", err.message);
+      }
+    }
 
     // Add user message
     history.push({ role: "user", content: message });
 
     // Call Claude
-    const aiResponse = await chat(history, floorPlans);
+    const aiResponse = await chat(history, floorPlans, session.productContext);
 
     // Add assistant response to history
     history.push({ role: "assistant", content: aiResponse });

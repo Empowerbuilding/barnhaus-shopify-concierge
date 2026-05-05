@@ -38,7 +38,7 @@ const s = {
 };
 
 export default function ChatWindow() {
-  const { messages, isLoading, isComplete, submissionData, activeFields, dismissFields, uploadPrompted, sendMessage, sendImage, startConversation } = useChat();
+  const { messages, isLoading, isComplete, submissionData, activeFields, dismissFields, uploadPrompted, sendMessage, sendImage, startConversation, isWidget } = useChat();
   const [input, setInput] = useState("");
   const [pendingImage, setPendingImage] = useState(null); // { file, previewUrl }
   const [logoError, setLogoError] = useState(false);
@@ -77,14 +77,16 @@ export default function ChatWindow() {
   };
 
   return (
-    <div style={s.container}>
-      <div style={s.header}>
-        {!logoError
-          ? <img src={LOGO_URL} alt="Barnhaus Steel Builders" style={s.logoImg} onError={() => setLogoError(true)} />
-          : <div style={s.logoFallback}>BARN<span style={s.logoAccent}>HAUS</span></div>
-        }
-        <div style={s.subtitle}>Design Concierge</div>
-      </div>
+    <div style={{ ...s.container, ...(isWidget ? { background: "transparent" } : {}) }}>
+      {!isWidget && (
+        <div style={s.header}>
+          {!logoError
+            ? <img src={LOGO_URL} alt="Barnhaus Steel Builders" style={s.logoImg} onError={() => setLogoError(true)} />
+            : <div style={s.logoFallback}>BARN<span style={s.logoAccent}>HAUS</span></div>
+          }
+          <div style={s.subtitle}>Design Concierge</div>
+        </div>
+      )}
 
       {isComplete ? (
         <div style={{ ...s.completeScreen, justifyContent: "flex-start", overflowY: "auto", paddingTop: 40 }}>
