@@ -53,12 +53,13 @@ function saveSession(sessionId, messages, isComplete, aiTurnCount) {
 }
 
 export function useChat() {
-  const saved = useRef(loadSession());
-  const sessionId = useRef(saved.current?.sessionId || generateId());
-
   const urlParams = new URLSearchParams(window.location.search);
   const [isWidget] = useState(() => urlParams.get("mode") === "widget");
   const [productHandle] = useState(() => urlParams.get("handle") || null);
+
+  // In widget mode always start fresh — never reuse a cached session
+  const saved = useRef(isWidget ? null : loadSession());
+  const sessionId = useRef(saved.current?.sessionId || generateId());
 
   const [messages, setMessages] = useState(saved.current?.messages || []);
   const [isLoading, setIsLoading] = useState(false);
