@@ -48,7 +48,7 @@ export async function writeSubmission(s) {
     garage_cars: toInt(s.garage_cars),
     garage_count: s.garage_cars ? `${s.garage_cars}-car` : null,
     desired_rooms: desiredRooms,
-    additional_requests: notes || s.additional_notes || null,
+    additional_requests: [notes || s.additional_notes, "Source: shopify_store"].filter(Boolean).join(" | ") || null,
     ceiling_height: toNum(s.ceiling_height),
     great_room_vaulted: s.great_room_vaulted ?? null,
     main_roof_style: s.roof_style || null,
@@ -68,7 +68,6 @@ export async function writeSubmission(s) {
     inspiration_images: s.imageUrls || [],
     vision_analysis: s.imageAnalyses?.map(a => `[${a.url}] ${a.analysis}`).join("\n\n") || null,
     status: "new",
-    lead_source: "shopify_store",
     submitted_at: new Date().toISOString(),
   };
 
