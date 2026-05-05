@@ -77,7 +77,7 @@ export async function writeToCRM(s) {
       const existingLeadSource = existingFull?.[0]?.lead_source;
       const existingEmail = existingFull?.[0]?.email;
       // Preserve original lead_source; add email if missing
-      const updatePayload = { notes: noteLines, lifecycle_stage: "lead", updated_at: new Date().toISOString() };
+      const updatePayload = { notes: noteLines, lifecycle_stage: "consumer", updated_at: new Date().toISOString() };
       if (!existingLeadSource) updatePayload.lead_source = "design_concierge";
       if (!existingEmail && s.email) updatePayload.email = s.email;
       // Update existing contact
@@ -99,7 +99,7 @@ export async function writeToCRM(s) {
           email: s.email,
           phone: s.phone || null,
           lead_source: "shopify_store_modification",
-          lifecycle_stage: "lead",
+          lifecycle_stage: "consumer",
           notes: noteLines,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -166,6 +166,26 @@ export async function notifyVanessa(s) {
       body: JSON.stringify({ content: msg.slice(0, 1900) }),
     });
   } catch (err) { console.error("Vanessa notify error:", err.message); }
+
+  // Also post to Shopify sales channel
+  const shopifyChannel = "1499096351370379496";
+  try {
+    const shopifyMsg = [
+      `🛍️ **Shopify Modification Lead**`,
+      ``,
+      `**Name:** ${s.name || "Unknown"}`,
+      `**Email:** ${s.email || "—"}`,
+      `**Phone:** ${s.phone || "—"}`,
+      s.summary ? `
+**What they want:** ${s.summary}` : null,
+    ].filter(v => v !== null).join("\n");
+
+    await fetch(`https://discord.com/api/v10/channels/${shopifyChannel}/messages`, {
+      method: "POST",
+      headers: { "Authorization": `Bot ${token}`, "Content-Type": "application/json", "User-Agent": "DiscordBot (barnhaus, 1.0)" },
+      body: JSON.stringify({ content: shopifyMsg.slice(0, 1900) }),
+    });
+  } catch (err) { console.error("Shopify channel notify error:", err.message); }
 }
 
 export async function sendDiscordNotification(s, partial = false) {
