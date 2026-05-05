@@ -79,7 +79,7 @@ export function useChat() {
 
   // Only show field cards for first 2 turns (contact + location)
   const maybeShowNextCard = useCallback((turnCount) => {
-    if (turnCount < 2) {
+    if (turnCount < (isWidget ? 1 : 2)) {
       setActiveFields(FIELD_STEPS[turnCount].fields);
     } else {
       setActiveFields(null);
