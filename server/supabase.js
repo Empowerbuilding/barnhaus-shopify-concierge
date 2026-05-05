@@ -68,6 +68,7 @@ export async function writeSubmission(s) {
     inspiration_images: s.imageUrls || [],
     vision_analysis: s.imageAnalyses?.map(a => `[${a.url}] ${a.analysis}`).join("\n\n") || null,
     status: "new",
+    lead_source: "shopify_store",
     submitted_at: new Date().toISOString(),
   };
 
