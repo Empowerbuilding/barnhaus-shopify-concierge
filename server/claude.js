@@ -137,7 +137,7 @@ function stripHtml(html) {
 }
 
 export function buildShopifySystemPrompt(product, floorPlans) {
-  const desc = stripHtml(product.body_html);
+  const desc = stripHtml(product.body_html).slice(0, 400);
 
   return `You are the Barnhaus Design Concierge. A visitor is looking at the ${product.title} on the Barnhaus Shopify store and wants to customize it.
 
