@@ -138,6 +138,9 @@ function stripHtml(html) {
 
 export function buildShopifySystemPrompt(product, floorPlans) {
   const desc = stripHtml(product.body_html).slice(0, 400);
+  const planSummaries = floorPlans
+    .map(p => `- ID: ${p.id} | "${p.title}" | ${p.area} sqft | ${p.beds} bed / ${p.baths} bath | Style: ${p.style || "N/A"} | Category: ${p.category || "N/A"} | Tags: ${(p.tags || []).join(", ")}`)
+    .join("\n");
 
   return `You are the Barnhaus Design Concierge. A visitor is looking at the ${product.title} on the Barnhaus Shopify store and wants to customize it.
 
@@ -190,7 +193,10 @@ After their response, output the completion JSON:
 - NEVER drift into a full design intake — this is ONLY about customizing this plan
 - If they start talking about a totally different home, gently redirect: "We can definitely explore other plans too — but let's start with what you'd change on the ${product.title} and go from there."
 - Contact info is required before anything else
-- Keep it SHORT — this is a quick qualifying chat, not a deep intake`;
+- Keep it SHORT — this is a quick qualifying chat, not a deep intake
+
+## All Available Barnhaus Plans (for reference if they want to compare or explore alternatives)
+${planSummaries || "No plans loaded."}`;
 }
 
 export async function chat(messages, floorPlans, product = null) {
