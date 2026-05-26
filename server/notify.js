@@ -134,6 +134,12 @@ async function insertCRMNote(contactId, content) {
 function val(v) { return v && v !== "null" && v !== "undefined" ? v : null; }
 
 export async function notifyVanessa(s) {
+  // If this came from a Shopify product page, route to Zena's #concierge-chats instead
+  if (s.productHandle) {
+    await notifyZena(s);
+    return;
+  }
+
   const token = process.env.VANESSA_DISCORD_TOKEN;
   const channel = process.env.VANESSA_LEAD_ALERTS_CHANNEL;
   if (!token || !channel || !s.email) return;
@@ -169,7 +175,7 @@ export async function notifyVanessa(s) {
     });
   } catch (err) { console.error("Vanessa notify error:", err.message); }
 
-  // Also post to Shopify sales channel
+  // Also post to Shopify sales channel (custom design clients only)
   const shopifyChannel = "1499096351370379496";
   try {
     const shopifyMsg = [
@@ -188,6 +194,41 @@ export async function notifyVanessa(s) {
       body: JSON.stringify({ content: shopifyMsg.slice(0, 1900) }),
     });
   } catch (err) { console.error("Shopify channel notify error:", err.message); }
+}
+
+// Notify Zena's #concierge-chats for Shopify-originated sessions
+async function notifyZena(s) {
+  const token = process.env.ZENA_DISCORD_TOKEN;
+  const channel = "1508305664223609024"; // #concierge-chats
+  if (!token) {
+    console.error("ZENA_DISCORD_TOKEN not set — cannot route Shopify concierge to Zena");
+    return;
+  }
+  try {
+    const name = s.name || `${s.first_name || ""} ${s.last_name || ""}`.trim() || "Unknown";
+    const plan = s.productHandle ? `Plan: ${s.productHandle}` : "";
+    const summary = s.summary || "No summary";
+    const mods = s.suggested_plan_names?.length ? `Plans discussed: ${s.suggested_plan_names.join(", ")}` : "";
+
+    const lines = [
+      `🛍️ **Shopify Concierge Complete — ${name}**`,
+      plan && `📦 ${plan}`,
+      `✉️ ${s.email || "—"} | 📞 ${s.phone || "—"}`,
+      s.location && `📍 ${s.location}${s.lot_size_acres ? ` (${s.lot_size_acres} acres)` : ""}`,
+      s.budget && `💰 Budget: ${s.budget}`,
+      s.sqft && `📐 ${s.sqft} SF | ${s.stories || "1"} story`,
+      s.timeline && `🗓️ Timeline: ${s.timeline}`,
+      mods && `\n🏡 ${mods}`,
+      `\n📋 **Summary:** ${summary}`,
+    ].filter(Boolean).join("\n");
+
+    await fetch(`https://discord.com/api/v10/channels/${channel}/messages`, {
+      method: "POST",
+      headers: { "Authorization": `Bot ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ content: lines.slice(0, 1900) }),
+    });
+    console.log("Zena notified — concierge-chats");
+  } catch (err) { console.error("Zena notify error:", err.message); }
 }
 
 export async function sendDiscordNotification(s, partial = false) {

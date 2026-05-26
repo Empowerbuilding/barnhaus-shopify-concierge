@@ -92,7 +92,7 @@ app.post("/api/chat", async (req, res) => {
 
     // Get or create session
     if (!sessions.has(sessionId)) {
-      sessions.set(sessionId, { history: [], partialSaved: false, imageUrls: [], partialDiscordMsgId: null, productContext: null });
+      sessions.set(sessionId, { history: [], partialSaved: false, imageUrls: [], partialDiscordMsgId: null, productContext: null, productHandle: null });
     }
     const session = sessions.get(sessionId);
     const history = session.history;
@@ -101,6 +101,7 @@ app.post("/api/chat", async (req, res) => {
     if (history.length === 0 && productHandle && !session.productContext) {
       try {
         session.productContext = await fetchShopifyProduct(productHandle);
+        session.productHandle = productHandle; // track for routing at completion
       } catch (err) {
         console.error("Failed to fetch Shopify product:", err.message);
       }
@@ -193,8 +194,10 @@ app.post("/api/complete", async (req, res) => {
         .filter(Boolean);
     }
 
+    // Attach productHandle for routing — if session came from Shopify, tag it
+    if (session?.productHandle) submissionData.productHandle = session.productHandle;
+
     // Delete partial Discord message if it exists
-    const session = sessionId ? sessions.get(sessionId) : null;
     if (session?.partialDiscordMsgId) {
       deleteDiscordMessage(session.partialDiscordMsgId).catch(() => {});
       session.partialDiscordMsgId = null;
