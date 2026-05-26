@@ -181,11 +181,9 @@ app.post("/api/complete", async (req, res) => {
     }
 
     // Attach image URLs + analyses from the session
-    if (sessionId && sessions.has(sessionId)) {
-      const session = sessions.get(sessionId);
-      if (session.imageUrls?.length) submissionData.imageUrls = session.imageUrls;
-      if (session.imageAnalyses?.length) submissionData.imageAnalyses = session.imageAnalyses;
-    }
+    const session = (sessionId && sessions.has(sessionId)) ? sessions.get(sessionId) : null;
+    if (session?.imageUrls?.length) submissionData.imageUrls = session.imageUrls;
+    if (session?.imageAnalyses?.length) submissionData.imageAnalyses = session.imageAnalyses;
 
     // Resolve floor plan names from IDs
     if (submissionData.suggested_plans?.length) {
