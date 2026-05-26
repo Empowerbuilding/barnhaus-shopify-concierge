@@ -7,7 +7,7 @@ import multer from "multer";
 import { chat } from "./claude.js";
 import { fetchShopifyProduct } from "./shopify.js";
 import { fetchFloorPlans, writeSubmission } from "./supabase.js";
-import { sendN8nWebhook, sendDiscordNotification, writeToCRM, deleteDiscordMessage, notifyVanessa } from "./notify.js";
+import { sendN8nWebhook, sendDiscordNotification, writeToCRM, deleteDiscordMessage, notifyVanessa, logModification } from "./notify.js";
 import { uploadImage, analyzeImage } from "./upload.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -204,12 +204,14 @@ app.post("/api/complete", async (req, res) => {
     // Write to Supabase + notify + CRM
     console.log("CRM write — submissionData keys:", Object.keys(submissionData || {}));
     console.log("CRM write — notes sample:", submissionData?.lifestyle_notes, "|", submissionData?.summary?.slice(0,80));
+    // Get contact ID after CRM write for modification logging
+    const crmResult = await writeToCRM(submissionData);
     const results = await Promise.allSettled([
       writeSubmission(submissionData),
       sendN8nWebhook(submissionData),
       sendDiscordNotification(submissionData),
-      writeToCRM(submissionData),
       notifyVanessa(submissionData),
+      logModification(submissionData, crmResult),
     ]);
 
     const [dbResult, n8nResult, discordResult] = results;

@@ -113,8 +113,11 @@ export async function writeToCRM(s) {
       if (contactId && noteLines) {
         await insertCRMNote(contactId, noteLines);
       }
+      return contactId;
+    } else {
+      return matchedContact.id;
     }
-  } catch (err) { console.error("CRM write error:", err.message); }
+  } catch (err) { console.error("CRM write error:", err.message); return null; }
 }
 
 async function insertCRMNote(contactId, content) {
@@ -332,4 +335,26 @@ export async function deleteDiscordMessage(messageId) {
       headers: { "Authorization": `Bot ${process.env.DISCORD_TOKEN}`, "User-Agent": "DiscordBot (barnhaus, 1.0)" },
     });
   } catch (err) { console.error("Discord delete error:", err.message); }
+}
+
+export async function logModification(s, contactId) {
+  // Only log if there's actual modification content (Shopify modify flow)
+  const modContent = s.additional_notes || s.summary;
+  if (!modContent || !s.productHandle) return;
+  try {
+    await fetch(`${CRM_URL}/rest/v1/modifications`, {
+      method: "POST",
+      headers: { apikey: CRM_KEY, Authorization: `Bearer ${CRM_KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({
+        contact_id: contactId,
+        plan_handle: s.productHandle,
+        plan_name: s.suggested_plan_names?.[0] || s.productHandle,
+        mod_list: modContent,
+        status: "new",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }),
+    });
+    console.log("Modification logged for contact", contactId);
+  } catch (err) { console.error("Modification log error:", err.message); }
 }
