@@ -78,13 +78,15 @@ export function useChat() {
   }, [messages, isComplete]);
 
   // Only show field cards for first 2 turns (contact + location)
+  // In widget mode OR Shopify plan-modify mode (productHandle set), only show 1 card (contact)
   const maybeShowNextCard = useCallback((turnCount) => {
-    if (turnCount < (isWidget ? 1 : 2)) {
+    const limit = (isWidget || productHandle) ? 1 : 2;
+    if (turnCount < limit) {
       setActiveFields(FIELD_STEPS[turnCount].fields);
     } else {
       setActiveFields(null);
     }
-  }, []);
+  }, [isWidget, productHandle]);
 
   const handleResponse = useCallback(async (data) => {
     const aiMsg = { role: "assistant", text: data.message, suggestedPlans: data.suggestedPlans || [] };
