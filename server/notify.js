@@ -88,6 +88,7 @@ export async function writeToCRM(s) {
       });
       console.log("CRM: updated existing contact", matchedContact.id);
       if (noteLines) await insertCRMNote(matchedContact.id, noteLines);
+      return matchedContact.id;
     } else {
       // Create new contact
       const res = await fetch(`${CRM_URL}/rest/v1/contacts`, {
@@ -114,8 +115,6 @@ export async function writeToCRM(s) {
         await insertCRMNote(contactId, noteLines);
       }
       return contactId;
-    } else {
-      return matchedContact.id;
     }
   } catch (err) { console.error("CRM write error:", err.message); return null; }
 }
