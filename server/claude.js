@@ -205,7 +205,7 @@ export async function chat(messages, floorPlans, product = null) {
     : buildSystemPrompt(floorPlans);
 
   const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-5",
     max_tokens: 1024,
     system: systemPrompt,
     messages,
