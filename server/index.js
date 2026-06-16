@@ -151,6 +151,7 @@ app.post("/api/chat", async (req, res) => {
     // Clean the response text — remove JSON blocks and any HTML the AI hallucinates
     const cleanText = aiResponse
       .replace(/```json\s*\n?\s*\{[^`]*\}\s*\n?\s*```/gs, "")
+      .replace(/```[a-z_][^`]*?```/gs, "")
       .replace(/<[^>]+>/g, "")
       .trim();
 
