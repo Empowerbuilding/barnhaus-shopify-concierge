@@ -119,6 +119,62 @@ export async function writeToCRM(s) {
   } catch (err) { console.error("CRM write error:", err.message); return null; }
 }
 
+// Trigger the standard new-lead SMS flow (n8n Outbound SMS - New Lead).
+// The n8n workflow has a dedup guard (skips contacts with any prior sms_sent),
+// routes shopify sources to Shannon as owner, and posts to her SMS channel.
+export async function triggerLeadSMS(s, contactId) {
+  if (!s.phone || !s.email) return;
+  try {
+    let firstName, lastName;
+    if (s.first_name || s.last_name) {
+      firstName = s.first_name || "";
+      lastName = s.last_name || "";
+    } else {
+      const parts = (s.name || "").trim().split(" ");
+      firstName = parts[0] || "there";
+      lastName = parts.slice(1).join(" ") || "";
+    }
+    const planTitle = (s.suggested_plan_names?.[0] || s.productHandle || "").split("|")[0].trim() || null;
+    await fetch("https://n8n.empowerbuilding.ai/webhook/new-lead-sms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        first_name: firstName,
+        last_name: lastName,
+        email: s.email,
+        phone: s.phone,
+        source: "shopify_store_modification",
+        contact_id: contactId || null,
+        metadata: { planTitle },
+      }),
+    });
+    console.log("Lead SMS webhook triggered for", s.email);
+  } catch (err) { console.error("Lead SMS trigger error:", err.message); }
+}
+
+// Log a form_submit activity so the CRM contact page (and any audits) show this touchpoint
+export async function logFormSubmitActivity(contactId, s) {
+  if (!contactId) return;
+  try {
+    await fetch(`${CRM_URL}/rest/v1/activities`, {
+      method: "POST",
+      headers: { apikey: CRM_KEY, Authorization: `Bearer ${CRM_KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({
+        contact_id: contactId,
+        activity_type: "form_submit",
+        title: "Submitted Shopify Modification Request form",
+        metadata: {
+          source: "shopify_store_modification",
+          plan_handle: s.productHandle || null,
+          summary: s.summary || null,
+        },
+        created_at: new Date().toISOString(),
+      }),
+    });
+    console.log("form_submit activity logged for contact", contactId);
+  } catch (err) { console.error("Activity log error:", err.message); }
+}
+
 async function insertCRMNote(contactId, content) {
   try {
     await fetch(`${CRM_URL}/rest/v1/notes`, {
