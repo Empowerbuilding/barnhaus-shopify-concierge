@@ -1,6 +1,16 @@
 const CRM_URL = "https://ejsnbluvkqocuchifdvp.supabase.co";
 const CRM_KEY = process.env.CRM_SUPABASE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqc25ibHV2a3FvY3VjaGlmZHZwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NjgwMTQ5NywiZXhwIjoyMDgyMzc3NDk3fQ.ZUTMAnnrwi7KPYYhkWL4Gexbn7ClrxOkG_CGWl2Q5X8";
 
+// CRM lead webhook — runs enrichment (Trestle/ATTOM/PDL), lead scoring, and whale scoring
+const CRM_WEBHOOK_URL = process.env.CRM_WEBHOOK_URL || "https://crm.empowerbuilding.ai/api/leads/webhook";
+const CRM_WEBHOOK_API_KEY = process.env.CRM_WEBHOOK_API_KEY;
+
+// Agent Portal — lead alert cards
+const PORTAL_URL = process.env.PORTAL_SUPABASE_URL || "https://xqvnpcxyyxxxydescfzw.supabase.co";
+const PORTAL_KEY = process.env.PORTAL_SERVICE_KEY;
+const PORTAL_ORG_ID = process.env.PORTAL_ORG_ID || "1c466ccb-ef35-4ba4-bf00-5fcabf20edec";
+const LEAD_ALERTS_CHANNEL = process.env.LEAD_ALERTS_CHANNEL || "barnhaus-atlas-lead-alerts";
+
 export async function sendN8nWebhook(s) {
   if (!process.env.N8N_WEBHOOK) return;
   try {
@@ -90,7 +100,44 @@ export async function writeToCRM(s) {
       if (noteLines) await insertCRMNote(matchedContact.id, noteLines);
       return matchedContact.id;
     } else {
-      // Create new contact
+      // Route new leads through the CRM lead webhook so enrichment
+      // (Trestle → ATTOM → PDL → whale score), lead scoring, and the
+      // modifications-deal logic all fire. Falls back to direct insert on failure.
+      if (CRM_WEBHOOK_API_KEY) {
+        try {
+          const whRes = await fetch(CRM_WEBHOOK_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-api-key": CRM_WEBHOOK_API_KEY },
+            body: JSON.stringify({
+              first_name: firstName || "Unknown",
+              last_name: lastName || "Unknown",
+              email: s.email,
+              phone: s.phone || undefined,
+              source: "shopify_store_modification",
+              metadata: {
+                plan_handle: s.productHandle || null,
+                summary: s.summary || null,
+              },
+            }),
+          });
+          const whData = await whRes.json();
+          if (whData?.success && whData.contact_id) {
+            // Replace the webhook's generic notes with the full interview notes
+            await fetch(`${CRM_URL}/rest/v1/contacts?id=eq.${whData.contact_id}`, {
+              method: "PATCH",
+              headers: { apikey: CRM_KEY, Authorization: `Bearer ${CRM_KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+              body: JSON.stringify({ notes: noteLines, lifecycle_stage: "lead", client_type: "consumer", updated_at: new Date().toISOString() }),
+            });
+            if (noteLines) await insertCRMNote(whData.contact_id, noteLines);
+            console.log("CRM: created contact via lead webhook (enrichment queued)", whData.contact_id);
+            return whData.contact_id;
+          }
+          console.error("CRM lead webhook non-success, falling back to direct insert:", JSON.stringify(whData));
+        } catch (whErr) {
+          console.error("CRM lead webhook error, falling back to direct insert:", whErr.message);
+        }
+      }
+      // Create new contact (direct insert fallback)
       const res = await fetch(`${CRM_URL}/rest/v1/contacts`, {
         method: "POST",
         headers: { apikey: CRM_KEY, Authorization: `Bearer ${CRM_KEY}`, "Content-Type": "application/json", Prefer: "return=representation" },
@@ -150,6 +197,46 @@ export async function triggerLeadSMS(s, contactId) {
     });
     console.log("Lead SMS webhook triggered for", s.email);
   } catch (err) { console.error("Lead SMS trigger error:", err.message); }
+}
+
+// Post a lead card to the Agent Portal lead-alerts channel (barnhaus-atlas-lead-alerts)
+export async function notifyLeadAlerts(s) {
+  if (!PORTAL_KEY) {
+    console.error("PORTAL_SERVICE_KEY not set — skipping portal lead alert");
+    return;
+  }
+  try {
+    const name = s.name || `${s.first_name || ""} ${s.last_name || ""}`.trim() || "Unknown";
+    const plan = (s.suggested_plan_names?.[0] || s.productHandle || "").toString().trim();
+    const lines = [
+      "🛍️ **New Shopify Modification Request**",
+      `**Name:** ${name}`,
+      `**Email:** ${s.email || "—"}`,
+      `**Phone:** ${s.phone || "—"}`,
+      plan && `**Plan:** ${plan}`,
+      s.location && `**Location:** ${s.location}`,
+      s.budget && `**Budget:** ${s.budget}`,
+      s.timeline && `**Timeline:** ${s.timeline}`,
+      s.summary && `\n**What they want:** ${s.summary}`,
+    ].filter(Boolean).join("\n");
+    const res = await fetch(`${PORTAL_URL}/rest/v1/portal_messages`, {
+      method: "POST",
+      headers: { apikey: PORTAL_KEY, Authorization: `Bearer ${PORTAL_KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({
+        channel_id: LEAD_ALERTS_CHANNEL,
+        org_id: PORTAL_ORG_ID,
+        sender_type: "agent",
+        sender_name: "Atlas",
+        content: lines.slice(0, 3900),
+        processed: true,
+      }),
+    });
+    if (!res.ok) {
+      console.error("Portal lead alert HTTP error:", res.status, await res.text());
+      return;
+    }
+    console.log("Portal lead alert posted — barnhaus-atlas-lead-alerts");
+  } catch (err) { console.error("Portal lead alert error:", err.message); }
 }
 
 // Log a form_submit activity so the CRM contact page (and any audits) show this touchpoint
