@@ -533,7 +533,7 @@ export async function sendModAckEmail(s, contactId) {
       ``,
       `<strong>Shannon</strong><br>`,
       `🌐 <a href="https://barnhaussteelbuilders.com">Barnhaus Steel Builders</a><br>`,
-      `📞 210-517-7267`,
+      `📞 (830) 407-6296`,
     ].join("\n");
 
     const res = await fetch("https://n8n.empowerbuilding.ai/webhook/tony-send-email", {
