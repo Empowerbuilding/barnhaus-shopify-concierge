@@ -531,7 +531,7 @@ export async function sendModAckEmail(s, contactId) {
       ``,
       `Thank you,`,
       ``,
-      `<strong>Mitchell</strong><br>`,
+      `<strong>Shannon</strong><br>`,
       `🌐 <a href="https://barnhaussteelbuilders.com">Barnhaus Steel Builders</a><br>`,
       `📞 210-517-7267`,
     ].join("\n");
@@ -541,7 +541,7 @@ export async function sendModAckEmail(s, contactId) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         to: s.email,
-        from_addr: "mitchell@barnhaussteelbuilders.com",
+        from_addr: "shannon@barnhaussteelbuilders.com",
         subject: planName ? `Your ${planName} Modification Request — Next Step` : `Your Modification Request — Next Step`,
         body,
       }),
@@ -561,7 +561,7 @@ export async function sendModAckEmail(s, contactId) {
           contact_id: contactId,
           activity_type: "email_sent",
           title: "Email sent: modification request acknowledgment (automated)",
-          description: `Automated ack from mitchell@barnhaussteelbuilders.com — pushed 30-min consultation booking. Plan: ${planName || "unknown"}`,
+          description: `Automated ack from shannon@barnhaussteelbuilders.com — pushed 30-min consultation booking. Plan: ${planName || "unknown"}`,
           metadata: { source: "shopify_concierge", automated: true, type: "mod_ack" },
         }),
       }).catch((e) => console.error("Mod ack activity log error:", e.message));
