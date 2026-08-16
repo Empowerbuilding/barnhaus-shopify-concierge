@@ -500,3 +500,73 @@ export async function logModification(s, contactId) {
     console.log("Modification logged for contact", contactId);
   } catch (err) { console.error("Modification log error:", err.message); }
 }
+
+// Auto-acknowledgment email for modification requests — pushes the 30-min consultation.
+// Fires for every completed submission with an email. Logs email_sent to CRM.
+export async function sendModAckEmail(s, contactId) {
+  if (!s.email) return;
+  try {
+    let planName = (s.suggested_plan_names?.[0] || "").split("|")[0].trim();
+    if (!planName && s.productHandle) {
+      planName = s.productHandle
+        .replace(/-/g, " ")
+        .replace(/\s*\bplan\b\s*$/i, "")
+        .trim()
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+    const planLabel = planName ? `the ${planName}` : "your plan";
+    const firstName = s.first_name || (s.name || "").trim().split(" ")[0] || "there";
+    const bookingUrl = "https://crm.empowerbuilding.ai/book/30-minute-consultation?utm_source=email&utm_medium=auto_ack&utm_campaign=shopify_modification";
+
+    const body = [
+      `Hi ${firstName},`,
+      ``,
+      `Thanks for sending over your modification ideas for ${planLabel} — your request is in and our design team is reviewing it now.`,
+      ``,
+      `The best next step is a quick 30-minute call so we can walk through your changes, your lot, and exactly what it takes to turn ${planLabel} into your version — including timeline and a fixed quote for the modified set.`,
+      ``,
+      `<a href="${bookingUrl}">Book your 30-minute consultation</a> — pick any time that works for you.`,
+      ``,
+      `Prefer email? Just reply here and we'll go from there.`,
+      ``,
+      `Thank you,`,
+      ``,
+      `<strong>Mitchell</strong><br>`,
+      `🌐 <a href="https://barnhaussteelbuilders.com">Barnhaus Steel Builders</a><br>`,
+      `📞 210-517-7267`,
+    ].join("\n");
+
+    const res = await fetch("https://n8n.empowerbuilding.ai/webhook/tony-send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: s.email,
+        from_addr: "mitchell@barnhaussteelbuilders.com",
+        subject: planName ? `Your ${planName} Modification Request — Next Step` : `Your Modification Request — Next Step`,
+        body,
+      }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!data?.success) {
+      console.error("Mod ack email failed:", JSON.stringify(data));
+      return;
+    }
+    console.log("Mod ack email sent to", s.email);
+
+    if (contactId) {
+      await fetch(`${CRM_URL}/rest/v1/activities`, {
+        method: "POST",
+        headers: { apikey: CRM_KEY, Authorization: `Bearer ${CRM_KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify({
+          contact_id: contactId,
+          activity_type: "email_sent",
+          title: "Email sent: modification request acknowledgment (automated)",
+          description: `Automated ack from mitchell@barnhaussteelbuilders.com — pushed 30-min consultation booking. Plan: ${planName || "unknown"}`,
+          metadata: { source: "shopify_concierge", automated: true, type: "mod_ack" },
+        }),
+      }).catch((e) => console.error("Mod ack activity log error:", e.message));
+    }
+  } catch (err) {
+    console.error("Mod ack email error:", err.message);
+  }
+}

@@ -7,7 +7,7 @@ import multer from "multer";
 import { chat } from "./claude.js";
 import { fetchShopifyProduct } from "./shopify.js";
 import { fetchFloorPlans, writeSubmission } from "./supabase.js";
-import { sendN8nWebhook, sendDiscordNotification, writeToCRM, deleteDiscordMessage, notifyVanessa, logModification, triggerLeadSMS, logFormSubmitActivity, notifyLeadAlerts } from "./notify.js";
+import { sendN8nWebhook, sendDiscordNotification, writeToCRM, deleteDiscordMessage, notifyVanessa, logModification, triggerLeadSMS, logFormSubmitActivity, notifyLeadAlerts, sendModAckEmail } from "./notify.js";
 import { uploadImage, analyzeImage } from "./upload.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -216,6 +216,7 @@ app.post("/api/complete", async (req, res) => {
       logModification(submissionData, crmResult),
       triggerLeadSMS(submissionData, crmResult),
       logFormSubmitActivity(crmResult, submissionData),
+      sendModAckEmail(submissionData, crmResult),
     ]);
 
     const [dbResult, n8nResult, discordResult] = results;
