@@ -514,7 +514,8 @@ export async function sendModAckEmail(s, contactId) {
         .trim()
         .replace(/\b\w/g, (c) => c.toUpperCase());
     }
-    const planLabel = planName ? `the ${planName}` : "your plan";
+    // Plan titles usually already start with "The" (e.g. "The Bastion") — avoid "the The Bastion"
+    const planLabel = planName ? (/^the\b/i.test(planName) ? planName : `the ${planName}`) : "your plan";
     const firstName = s.first_name || (s.name || "").trim().split(" ")[0] || "there";
     const bookingUrl = "https://crm.empowerbuilding.ai/book/30-minute-consultation?utm_source=email&utm_medium=auto_ack&utm_campaign=shopify_modification";
 
@@ -542,7 +543,7 @@ export async function sendModAckEmail(s, contactId) {
       body: JSON.stringify({
         to: s.email,
         from_addr: "shannon@barnhaussteelbuilders.com",
-        subject: planName ? `Your ${planName} Modification Request — Next Step` : `Your Modification Request — Next Step`,
+        subject: planName ? `${planName} Modification Request — Next Step` : `Your Modification Request — Next Step`,
         body,
       }),
     });
@@ -561,7 +562,7 @@ export async function sendModAckEmail(s, contactId) {
           contact_id: contactId,
           activity_type: "email_sent",
           title: "Email sent: modification request acknowledgment (automated)",
-          description: `Automated ack from shannon@barnhaussteelbuilders.com — pushed 30-min consultation booking. Plan: ${planName || "unknown"}`,
+          description: `Automated ack from shannon@barnhaussteelbuilders.com — pushed 30-min consultation booking. Plan: ${planName || "unknown"}\n\n--- Email sent ---\nSubject: ${planName ? `${planName} Modification Request — Next Step` : `Your Modification Request — Next Step`}\n\n${body}`,
           metadata: { source: "shopify_concierge", automated: true, type: "mod_ack" },
         }),
       }).catch((e) => console.error("Mod ack activity log error:", e.message));
