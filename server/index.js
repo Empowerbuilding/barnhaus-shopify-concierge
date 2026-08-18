@@ -259,7 +259,7 @@ app.post("/api/partial", async (req, res) => {
     const partialMsgId = await sendDiscordNotification({ name, email, phone, status: "partial" });
     if (session) session.partialDiscordMsgId = partialMsgId;
     writeSubmission({ first_name: firstName, last_name: lastName, name, email, phone, status: "partial" }).catch(e => console.error("Partial save err:", e));
-    writeToCRM({ first_name: firstName, last_name: lastName, email, phone, notes: "Partial lead — Design Concierge interview in progress." }).catch(e => console.error("Partial CRM err:", e));
+    writeToCRM({ first_name: firstName, last_name: lastName, email, phone }, { partial: true }).catch(e => console.error("Partial CRM err:", e));
     res.json({ ok: true });
   } catch (err) {
     console.error("Partial endpoint error:", err);

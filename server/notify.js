@@ -22,7 +22,10 @@ export async function sendN8nWebhook(s) {
   } catch (err) { console.error("n8n webhook error:", err.message); }
 }
 
-export async function writeToCRM(s) {
+export async function writeToCRM(s, opts = {}) {
+  // partial = contact-info capture step (mid-interview). Upsert the contact only —
+  // no notes, no lifecycle changes. The full submission writes the single rich note.
+  const partial = !!opts.partial;
   try {
     // Handle both s.name (full name) and s.first_name/s.last_name
     let firstName, lastName;
@@ -58,9 +61,11 @@ export async function writeToCRM(s) {
       s.imageAnalyses?.length && `Image analysis:\n${s.imageAnalyses.map((a,i) => `Image ${i+1}: ${a.analysis}`).join("\n")}`,
     ].filter(Boolean).join("\n");
 
-    // Check if contact already exists
+    // Check if contact already exists (case-insensitive — CRM stores lowercase but
+    // form input may be mixed case; eq. was silently missing existing contacts)
+    const email = (s.email || "").toLowerCase().trim();
     const existing = await fetch(
-      `${CRM_URL}/rest/v1/contacts?email=eq.${encodeURIComponent(s.email)}&select=id&limit=1`,
+      `${CRM_URL}/rest/v1/contacts?email=ilike.${encodeURIComponent(email)}&select=id&limit=1`,
       { headers: { apikey: CRM_KEY, Authorization: `Bearer ${CRM_KEY}` } }
     ).then(r => r.json());
 
@@ -86,10 +91,23 @@ export async function writeToCRM(s) {
       ).then(r => r.json());
       const existingLeadSource = existingFull?.[0]?.lead_source;
       const existingEmail = existingFull?.[0]?.email;
+      // Partial (contact-info step): just backfill missing email, touch nothing else.
+      // No note, no lifecycle change — the full submission handles all of that.
+      if (partial) {
+        if (!existingEmail && email) {
+          await fetch(`${CRM_URL}/rest/v1/contacts?id=eq.${matchedContact.id}`, {
+            method: "PATCH",
+            headers: { apikey: CRM_KEY, Authorization: `Bearer ${CRM_KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+            body: JSON.stringify({ email, updated_at: new Date().toISOString() }),
+          });
+        }
+        console.log("CRM: partial — matched existing contact, no writes", matchedContact.id);
+        return matchedContact.id;
+      }
       // Preserve original lead_source; add email if missing
       const updatePayload = { notes: noteLines, lifecycle_stage: "lead", client_type: "consumer", updated_at: new Date().toISOString() };
       if (!existingLeadSource) updatePayload.lead_source = "design_concierge";
-      if (!existingEmail && s.email) updatePayload.email = s.email;
+      if (!existingEmail && email) updatePayload.email = email;
       // Update existing contact
       await fetch(`${CRM_URL}/rest/v1/contacts?id=eq.${matchedContact.id}`, {
         method: "PATCH",
@@ -97,6 +115,7 @@ export async function writeToCRM(s) {
         body: JSON.stringify(updatePayload),
       });
       console.log("CRM: updated existing contact", matchedContact.id);
+      // Single note writer: this is the ONE note for this modification request
       if (noteLines) await insertCRMNote(matchedContact.id, noteLines);
       return matchedContact.id;
     } else {
@@ -111,9 +130,13 @@ export async function writeToCRM(s) {
             body: JSON.stringify({
               first_name: firstName || "Unknown",
               last_name: lastName || "Unknown",
-              email: s.email,
+              email,
               phone: s.phone || undefined,
               source: "shopify_store_modification",
+              // We write our own rich note below — tell the webhook not to duplicate it.
+              // On full submissions we also log our own form_submit activity.
+              skip_note: true,
+              skip_activity: !partial,
               metadata: {
                 plan_handle: s.productHandle || null,
                 summary: s.summary || null,
@@ -122,12 +145,17 @@ export async function writeToCRM(s) {
           });
           const whData = await whRes.json();
           if (whData?.success && whData.contact_id) {
+            if (partial) {
+              console.log("CRM: partial — created contact via lead webhook, no note", whData.contact_id);
+              return whData.contact_id;
+            }
             // Replace the webhook's generic notes with the full interview notes
             await fetch(`${CRM_URL}/rest/v1/contacts?id=eq.${whData.contact_id}`, {
               method: "PATCH",
               headers: { apikey: CRM_KEY, Authorization: `Bearer ${CRM_KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" },
               body: JSON.stringify({ notes: noteLines, lifecycle_stage: "lead", client_type: "consumer", updated_at: new Date().toISOString() }),
             });
+            // Single note writer: the one rich note for this request
             if (noteLines) await insertCRMNote(whData.contact_id, noteLines);
             console.log("CRM: created contact via lead webhook (enrichment queued)", whData.contact_id);
             return whData.contact_id;
@@ -144,7 +172,7 @@ export async function writeToCRM(s) {
         body: JSON.stringify({
           first_name: firstName,
           last_name: lastName,
-          email: s.email,
+          email,
           phone: s.phone || null,
           lead_source: "shopify_store_modification",
           lifecycle_stage: "lead",
@@ -158,7 +186,7 @@ export async function writeToCRM(s) {
       if (!Array.isArray(created)) console.error("CRM insert error:", JSON.stringify(created));
       const contactId = created?.[0]?.id;
       console.log("CRM: created contact", contactId);
-      if (contactId && noteLines) {
+      if (contactId && noteLines && !partial) {
         await insertCRMNote(contactId, noteLines);
       }
       return contactId;
