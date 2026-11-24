@@ -1,6 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import { geminiChat } from "./gemini.js";
 
 const FENCE = "```";
 
@@ -204,12 +202,6 @@ export async function chat(messages, floorPlans, product = null) {
     ? buildShopifySystemPrompt(product, floorPlans)
     : buildSystemPrompt(floorPlans);
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 1024,
-    system: systemPrompt,
-    messages,
-  });
-
-  return response.content.filter(b => b.type === "text").map(b => b.text).join("");
+  // Gemini via OpenAI-compat endpoint — model + key via env (see server/gemini.js).
+  return geminiChat({ system: systemPrompt, messages, maxTokens: 1024 });
 }

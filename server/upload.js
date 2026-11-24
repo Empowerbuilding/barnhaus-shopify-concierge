@@ -1,13 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
-import Anthropic from "@anthropic-ai/sdk";
+import { geminiVision } from "./gemini.js";
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
 );
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export async function uploadImage(fileBuffer, mimetype, originalName) {
   const ext = originalName.split(".").pop().toLowerCase() || "jpg";
@@ -31,19 +29,14 @@ export async function analyzeImage(fileBuffer, mimetype) {
     const base64 = fileBuffer.toString("base64");
 
     // Step 1: Classify the image type
-    const classifyRes = await anthropic.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 20,
-      messages: [{
-        role: "user",
-        content: [
-          { type: "image", source: { type: "base64", media_type: mimetype, data: base64 } },
-          { type: "text", text: `What type of image is this? Reply with exactly one word: INSPIRATION, FLOORPLAN, SURVEY, or AERIAL.\n- INSPIRATION: a photo of a house exterior, interior, kitchen, living room, or design aesthetic\n- FLOORPLAN: a floor plan drawing, blueprint, sketch, or room layout diagram\n- SURVEY: a land survey, property boundary document, or legal plat map\n- AERIAL: an aerial or satellite photo of land, a lot, or property from above` }
-        ]
-      }]
+    const classifyText = await geminiVision({
+      prompt: `What type of image is this? Reply with exactly one word: INSPIRATION, FLOORPLAN, SURVEY, or AERIAL.\n- INSPIRATION: a photo of a house exterior, interior, kitchen, living room, or design aesthetic\n- FLOORPLAN: a floor plan drawing, blueprint, sketch, or room layout diagram\n- SURVEY: a land survey, property boundary document, or legal plat map\n- AERIAL: an aerial or satellite photo of land, a lot, or property from above`,
+      imageBase64: base64,
+      mimetype,
+      maxTokens: 20,
     });
 
-    const imageType = classifyRes.content[0]?.text?.trim().toUpperCase() || "INSPIRATION";
+    const imageType = classifyText.toUpperCase().match(/\b(INSPIRATION|FLOORPLAN|SURVEY|AERIAL)\b/)?.[0] || "INSPIRATION";
 
     // Step 2: Analyze based on type
     let prompt;
@@ -82,19 +75,7 @@ Be specific and useful for a home designer planning a build on this lot.`;
 Be specific and useful for a home designer understanding client taste.`;
     }
 
-    const response = await anthropic.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 400,
-      messages: [{
-        role: "user",
-        content: [
-          { type: "image", source: { type: "base64", media_type: mimetype, data: base64 } },
-          { type: "text", text: prompt }
-        ]
-      }]
-    });
-
-    const analysis = response.content[0]?.text || null;
+    const analysis = await geminiVision({ prompt, imageBase64: base64, mimetype, maxTokens: 400 }) || null;
     // Prefix with image type so the AI knows what it's reading
     return analysis ? `[${imageType}] ${analysis}` : null;
 
